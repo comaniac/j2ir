@@ -157,8 +157,6 @@ public class Kernel {
 			" in the provided jar files");
 		}
 
-		// FIXME: Decompile class file
-		//String JavaFilePath = classFilePath.replace(".class", ".java");
 		String JavaFilePath = Util.decompileClassToJava(classFilePath);
 
 		CompilationUnit cu = Util.parseJavaSource(JavaFilePath);

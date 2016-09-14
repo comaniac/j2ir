@@ -3,6 +3,7 @@ package org.apache.j2ir.visitor;
 import com.github.javaparser.ast.Node;
 import com.github.javaparser.ast.body.*;
 import com.github.javaparser.ast.expr.VariableDeclarationExpr;
+import com.github.javaparser.ast.type.ClassOrInterfaceType;
 import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 
@@ -24,6 +25,11 @@ public class TypeEnvBuilder extends VoidVisitorAdapter<Map<String, Type>> {
 	}
 
 	public void build(Map<String, Type> env) {
+
+		// Add synthetic variable "SYNTHETIC_MODULE" for singleton object accessing.
+		if (!env.containsKey("SYNTHETIC_MODULE"))
+			env.put("SYNTHETIC_MODULE", new ClassOrInterfaceType("SYNTHETIC_MODULE"));
+
 		if (scope instanceof ClassOrInterfaceDeclaration)
 			visit((ClassOrInterfaceDeclaration) scope, env);
 		else if (scope instanceof MethodDeclaration)
@@ -47,7 +53,7 @@ public class TypeEnvBuilder extends VoidVisitorAdapter<Map<String, Type>> {
 		if (scope != n)
 			return;
 
-		// Visit paramters
+		// Visit parameters
 		if (n.getParameters() != null) {
 			for (final Parameter p : n.getParameters())
 				p.accept(this, env);

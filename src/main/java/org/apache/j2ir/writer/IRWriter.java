@@ -1,16 +1,13 @@
 package org.apache.j2ir.writer;
 
 import com.github.javaparser.PositionUtils;
-import com.github.javaparser.ast.*;
-import com.github.javaparser.ast.body.*;
-import com.github.javaparser.ast.comments.BlockComment;
+import com.github.javaparser.ast.Node;
+import com.github.javaparser.ast.TypeParameter;
+import com.github.javaparser.ast.body.BodyDeclaration;
 import com.github.javaparser.ast.comments.Comment;
-import com.github.javaparser.ast.comments.JavadocComment;
-import com.github.javaparser.ast.comments.LineComment;
-import com.github.javaparser.ast.expr.*;
+import com.github.javaparser.ast.expr.Expression;
 import com.github.javaparser.ast.internal.Utils;
-import com.github.javaparser.ast.stmt.*;
-import com.github.javaparser.ast.type.*;
+import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitor;
 import org.apache.j2ir.model.ClassModel;
 import org.apache.j2ir.model.FieldModel;
@@ -30,6 +27,12 @@ public abstract class IRWriter implements VoidVisitor<ClassModel> {
 	protected CodeWriter writer;
 
 	public static class CodeWriter {
+		final static private String lineSeparator;
+
+		static {
+			//lineSeparator = System.getProperty("line.separator");
+			lineSeparator = "\n";
+		}
 
 		private final String indentation;
 		private int level = 0;
@@ -68,7 +71,7 @@ public abstract class IRWriter implements VoidVisitor<ClassModel> {
 		}
 
 		public void writeln() {
-			buf.append(System.getProperty("line.separator"));
+			buf.append(lineSeparator);
 			ined = false;
 		}
 

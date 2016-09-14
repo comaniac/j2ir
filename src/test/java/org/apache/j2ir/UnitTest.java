@@ -1,5 +1,7 @@
 package org.apache.j2ir;
 
+import org.apache.j2ir.utils.Util;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
@@ -9,17 +11,6 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 
 class UnitTest {
-	final private static String WORKING_OS;
-	final private static String ps;
-
-	static {
-		WORKING_OS = System.getProperty("os.name");
-		if (WORKING_OS.contains("Windows"))
-			ps = "\\";
-		else
-			ps = "/";
-	}
-
 	private final String tmpOutputDir = "tmpOutput";
 
 	void doTest(String testName) {
@@ -28,7 +19,7 @@ class UnitTest {
 			kernelName = kernelName.substring(kernelName.lastIndexOf('/') + 1, kernelName.length());
 
 		// Setup working directory
-		String prjOutputDir = tmpOutputDir + ps + kernelName;
+		String prjOutputDir = tmpOutputDir + Util.ps + kernelName;
 		new File(prjOutputDir).delete();
 		new File(prjOutputDir).mkdir();
 
@@ -50,17 +41,17 @@ class UnitTest {
 				compileProc.waitFor();
 				Process jarProc = Runtime.getRuntime().exec("jar cf " + kernelName + ".jar *.class",
 						null, new File(prjOutputDir));
-				System.err.println("jar cf " + kernelName + ".jar *.class");
+				//System.err.println("jar cf " + kernelName + ".jar *.class");
 				jarProc.waitFor();
-				args[0] = prjOutputDir + ps + kernelName + ".jar";
+				args[0] = prjOutputDir + Util.ps + kernelName + ".jar";
 			}
 
 			// Setup output file
-			args[2] = prjOutputDir + ps + kernelName;
+			args[2] = prjOutputDir + Util.ps + kernelName;
 
 			// Setup golden file
-			String goldenSrcFile = testPath + ps + kernelName + "_expected.cpp";
-			String goldenHeadFile = testPath + ps + kernelName + "_expected.h";
+			String goldenSrcFile = testPath + Util.ps + kernelName + "_expected.cpp";
+			String goldenHeadFile = testPath + Util.ps + kernelName + "_expected.h";
 
 			System.out.println("Testing " + testName);
 			J2IR.main(args);
@@ -70,8 +61,10 @@ class UnitTest {
 				System.out.println(testName + " passed");
 			else if (srcResCode == -1 || headResCode == -1)
 				throw new RuntimeException(testName + " failed: cannot find output file");
+			else if (srcResCode != 0)
+				throw new RuntimeException(testName + " failed: result mismatch (" + goldenSrcFile + " vs. " + args[2] + ".cpp");
 			else
-				throw new RuntimeException(testName + " failed: result mismatch");
+				throw new RuntimeException(testName + " failed: result mismatch (" + goldenHeadFile + " vs. " + args[2] + ".h");
 		} catch (Exception e) {
 			e.printStackTrace();
 			throw new RuntimeException(testName + " failed: ");

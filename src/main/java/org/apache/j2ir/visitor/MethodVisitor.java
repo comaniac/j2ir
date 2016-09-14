@@ -9,6 +9,7 @@ import com.github.javaparser.ast.type.Type;
 import com.github.javaparser.ast.visitor.VoidVisitorAdapter;
 import org.apache.j2ir.model.ClassModel;
 import org.apache.j2ir.model.MethodModel;
+import org.apache.j2ir.model.VoidClassModel;
 import org.apache.j2ir.utils.J2IRLogger;
 import org.apache.j2ir.utils.Util;
 
@@ -28,7 +29,10 @@ public class MethodVisitor extends VoidVisitorAdapter<MethodModel> {
 	private ClassModel getOrAddClass(String className) {
 		ClassModel model;
 		if (!usedClasses.containsKey(className)) {
-			model = new ClassModel(className);
+			if (className.equals("SYNTHETIC_MODULE"))
+				model = new VoidClassModel("SYNTHETIC_MODULE");
+			else
+				model = new ClassModel(className);
 			usedClasses.put(className, model);
 		} else
 			model = usedClasses.get(className);
@@ -146,6 +150,15 @@ public class MethodVisitor extends VoidVisitorAdapter<MethodModel> {
 	@Override
 	public void visit(MethodCallExpr n, MethodModel model) {
 		Expression caller = n.getScope();
+
+		// Deal with series method calls
+		while (caller != null && caller instanceof MethodCallExpr) {
+			MethodCallExpr expr = (MethodCallExpr) caller;
+			if (expr.getScope() == null)
+				break;
+			caller = expr.getScope();
+		}
+
 		if (caller == null || caller instanceof ThisExpr) {
 			// Method in the same class
 			model.getClassModel().addMethod(n, model.getTypeEnv());
@@ -156,10 +169,12 @@ public class MethodVisitor extends VoidVisitorAdapter<MethodModel> {
 			if (caller instanceof NameExpr) {
 				// Method in local variable's type class
 				varName = caller.toString();
-			} else {
+			} else if (caller instanceof FieldAccessExpr) {
 				// Method in field's type class
 				varName = ((FieldAccessExpr) caller).getFieldExpr().toString();
-			}
+			} else
+				throw new RuntimeException("Expect FieldAccessExpr, but found " + caller.toString());
+
 			Type type = model.getTypeEnv().get(varName);
 			if (type == null)
 				throw new RuntimeException("Cannot find variable " + varName + " in "

@@ -10,27 +10,35 @@ import com.github.javaparser.ast.expr.MethodCallExpr;
 import com.github.javaparser.ast.expr.ObjectCreationExpr;
 import com.github.javaparser.ast.internal.Utils;
 import com.github.javaparser.ast.type.Type;
-import javafx.util.Pair;
 import org.apache.j2ir.model.ClassModel;
 import org.apache.j2ir.visitor.TypeVisitor;
 
 import java.io.*;
-import java.util.*;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 import java.util.logging.Logger;
 
 public class Util {
 	final private static Logger logger = (new J2IRLogger()).logger;
-	final private static String WORKING_OS;
-	final private static String ps;
+	final public static String WORKING_OS;
+	final public static String ps;
+	final public static String tmpDir;
 
 	static {
 		WORKING_OS = System.getProperty("os.name");
-		if (WORKING_OS.contains("Windows"))
+		if (WORKING_OS.contains("Windows")) {
 			ps = "\\";
-		else
+			tmpDir = "tmpOutput";
+			if (!(new File(tmpDir).exists()))
+				new File(tmpDir).mkdir();
+		} else {
 			ps = "/";
+			tmpDir = "/tmp";
+		}
 	}
 
 	public static Map<String, String> buildClass2SrcMapFromJar(String pathString) throws Exception {
@@ -60,16 +68,19 @@ public class Util {
 	}
 
 	public static String decompileClassToJava(String filePath) throws IOException, InterruptedException {
-		// FIXME: Configurable temp directory path
-		String tmpPath = "tmpOutput";
-
 		String bcFilePath = filePath;
 		if (filePath.contains(":")) { // Class file is put inside a jar file
 			String jarFilePath = filePath.substring(0, filePath.lastIndexOf(":"));
 			bcFilePath = filePath.substring(0, filePath.lastIndexOf(ps) + 1) +
 					filePath.substring(filePath.lastIndexOf(":") + 1, filePath.length());
 			try {
-				Process unzipProc = Runtime.getRuntime().exec("jar xMf " + jarFilePath + " " + bcFilePath,
+				// Unzip the class file
+				Process unzipProc = Runtime.getRuntime().exec("unzip " + jarFilePath + " " + bcFilePath,
+						null, new File(jarFilePath.substring(0, jarFilePath.lastIndexOf(ps))));
+				unzipProc.waitFor();
+
+				// Unzip the subclass files (if any)
+				unzipProc = Runtime.getRuntime().exec("unzip " + jarFilePath + " " + bcFilePath.replace(".class", "$$*.class"),
 						null, new File(jarFilePath.substring(0, jarFilePath.lastIndexOf(ps))));
 				unzipProc.waitFor();
 			} catch (IOException e) {
@@ -77,11 +88,10 @@ public class Util {
 			}
 		}
 
-		File bcFile = new File(bcFilePath);
-		if (!bcFile.exists())
+		if (!new File(bcFilePath).exists())
 			throw new RuntimeException("Cannot load class file " + bcFilePath);
 
-		Process decompileProc = Runtime.getRuntime().exec("java -jar fernflower.jar " + bcFilePath + " " + tmpPath);
+		Process decompileProc = Runtime.getRuntime().exec("java -jar fernflower.jar " + bcFilePath.replace(".class", "*.class") + " " + tmpDir);
 		decompileProc.waitFor();
 
 //		Map<String, Object> mapOptions = new HashMap<String, Object>();
@@ -91,7 +101,7 @@ public class Util {
 //		decompiler.decompileContext();
 
 		// FIXME: Windows/Linux support
-		String JavaFilePath = tmpPath + ps;
+		String JavaFilePath = tmpDir + ps;
 
 		if (bcFilePath.contains(ps))
 			JavaFilePath += bcFilePath.substring(bcFilePath.lastIndexOf(ps) + 1, bcFilePath.length());
@@ -99,28 +109,33 @@ public class Util {
 			JavaFilePath += bcFilePath;
 		JavaFilePath = JavaFilePath.replace(".class", ".java");
 
-		// Preprocess to bridge the gap between decompiler and java parser
+		// Process to bridge the gap between decompiler and java parser
 		String tmpFilePath = JavaFilePath.replace(".java", "_processed.java");
+		processJavaCodeFromFernFlower(JavaFilePath, tmpFilePath);
 
-		BufferedWriter bw = new BufferedWriter(new FileWriter(tmpFilePath));
-		try (BufferedReader br = new BufferedReader(new FileReader(JavaFilePath))) {
+		return tmpFilePath;
+	}
+
+	private static void processJavaCodeFromFernFlower(String inFile, String outFile) throws IOException {
+		BufferedWriter bw = new BufferedWriter(new FileWriter(outFile));
+		try (BufferedReader br = new BufferedReader(new FileReader(inFile))) {
 			String line;
 			while ((line = br.readLine()) != null) {
 				if (line.startsWith("import ") && line.contains(".class"))
 					continue;
+				else if (line.startsWith("import ") && line.contains(".."))
+					continue;
 				else if (line.contains(".;"))
 					continue;
 				else if (line.contains(".MODULE$"))
-					continue;
+					line = line.replace(".MODULE$", "SYNTHETIC_MODULE");
+
 				if (line.contains("class."))
 					line = line.replace("class.", "super.");
 				bw.write(line + "\n");
 			}
 		}
 		bw.close();
-
-
-		return tmpFilePath;
 	}
 
 	public static CompilationUnit parseJavaSource(String srcFilePath) throws ParseException, IOException {
