@@ -1,0 +1,10 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="j2ir:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/j2ir_jar</output-path>
+    <root id="archive" name="j2ir.jar">
+      <element id="module-output" name="j2ir" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/org/jboss/windup/decompiler/fernflower/fernflower/2.5.0.Final/fernflower-2.5.0.Final.jar" path-in-jar="/" />
+      <element id="extracted-dir" path="$MAVEN_REPOSITORY$/com/github/javaparser/javaparser-core/2.5.1/javaparser-core-2.5.1.jar" path-in-jar="/" />
+    </root>
+  </artifact>
+</component>

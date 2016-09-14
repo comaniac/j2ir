@@ -1,0 +1,7 @@
+<?xml version="1.0"?>
+<kernel name="XMLTest.compute">
+	<variable>
+		<name>b</name>
+		<length>20, 30</length>
+	</variable>
+</kernel>
